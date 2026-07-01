@@ -1,36 +1,113 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Brightway Portal
 
-## Getting Started
+Financial operations web portal — upload the daily Dejavoo CSV, auto-calculate
+each store's net deposit, export one NACHA file, and let store owners see their
+own data. This repo currently contains the **front-end**, wired to **dummy
+data**, ready for the Supabase back-end.
 
-First, run the development server:
+## Tech stack
+
+- **Next.js 15** (App Router) + **React 18** + **TypeScript**
+- **Tailwind CSS v3** + **shadcn/ui** primitives (`src/components/ui`)
+- **Supabase** (`@supabase/ssr`) — clients are ready; paste keys into `.env.local`
+- react-hook-form + zod, recharts, axios, date-fns, lucide-react
+- ESLint + Prettier
+
+> Note on versions: the design's file tree specifies both `next.config.ts` and
+> `tailwind.config.ts`. `next.config.ts` requires Next 15+ (Next 14 can't use a
+> TS config), and `tailwind.config.ts` is a Tailwind v3 file, so the project is
+> pinned to Next 15 + Tailwind v3 for a stable, coherent base.
+
+## Getting started
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+# fill in your Supabase keys in .env.local (created with empty values)
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Other scripts: `npm run build`, `npm run start`, `npm run lint`,
+`npm run format`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Demo login
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+`/` redirects to `/login`. Use the tap-to-autofill demo credentials:
 
-## Learn More
+- **Super Admin** — `admin@brightway.com` → super-admin portal (`/admin/*`)
+- **Store Admin** — `owner@alnoormart.com` → store portal (`/store/*`)
 
-To learn more about Next.js, take a look at the following resources:
+Password for both: `demo123`. (Auth is not real yet — login routes by email
+pattern. Use the topbar "switch portal" button to jump between the two portals.)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Routing
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Both portals are grouped by App Router **route groups** but served under
+distinct URL prefixes so pages never collide:
 
-## Deploy on Vercel
+| Portal            | Route group        | URL prefix | Pages                                            |
+| ----------------- | ------------------ | ---------- | ------------------------------------------------ |
+| Auth              | `(auth)`           | `/login`   | login                                            |
+| Super Admin       | `(super-admin)`    | `/admin`   | dashboard, stores, stores/[storeId], tpns, fees-and-taxes, transactions |
+| Store Owner       | `(admin)`          | `/store`   | dashboard, transactions, deposits, reports       |
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Folder structure
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+├── app/                      # App Router routes
+│   ├── (auth)/login/         # sign-in screen
+│   ├── (super-admin)/admin/  # super-admin portal pages (URL: /admin/*)
+│   ├── (admin)/store/        # store-owner portal pages (URL: /store/*)
+│   ├── api/                  # route handlers (placeholders returning JSON)
+│   ├── layout.tsx            # root layout (fonts, global CSS)
+│   ├── page.tsx              # "/" -> redirects to /login
+│   └── globals.css           # Tailwind + design tokens + IBM Plex font import
+├── components/
+│   ├── ui/                   # shadcn/ui primitives (add via: npx shadcn add ...)
+│   ├── super-admin/          # Sidebar, StoresTable, TPNsTable, TransactionsTable, FeesForm
+│   ├── admin/                # Sidebar, DepositsTable, TransactionsTable, ReportsChart
+│   └── shared/               # PortalShell, StatCard, DataTable, StatusBadge, BarChart,
+│                             #   Toast, icons, FilterBar, and other cross-portal pieces
+├── lib/
+│   ├── supabase/             # browser (client.ts) + server (server.ts) Supabase clients
+│   ├── dummy-data/           # ALL sample data lives here (stores, transactions, tpns,
+│   │                         #   deposits, users, charts, metrics) — never in components
+│   ├── utils/                # formatCurrency, formatDate, calculateFees, cn
+│   ├── ui.ts                 # shared style tokens/helpers reproducing the design
+│   └── constants.ts          # app-wide constants (roles, routes, thresholds)
+├── types/                    # domain interfaces (Store, Transaction, TPN, Deposit, User)
+├── hooks/                    # useAuth, useStores, useTransactions (dummy-data backed)
+└── middleware.ts             # route-protection placeholder (pass-through for now)
+```
+
+### Conventions
+
+- **All dummy data lives in `src/lib/dummy-data/`** — components/pages import it,
+  never hardcode it. Swap these for Supabase queries (or the `use*` hooks) later.
+- The portal screens use inline design tokens from `src/lib/ui.ts` (`THEME`, `S`,
+  `badge`, `money`). shadcn/ui + Tailwind remain available for new UI.
+- Every file is TypeScript; no `.js` app files.
+
+## Environment variables
+
+Set these in `.env.local` (present with empty values). Required for Supabase:
+
+```
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+NEXT_PUBLIC_APP_URL=
+```
+
+## Deployment
+
+- **Frontend:** Vercel
+- **Backend/API:** Supabase (Railway for any additional services)
+
+## Status / next steps
+
+- [x] Project scaffold, config, dummy data, types
+- [x] Full front-end (both portals) on dummy data
+- [ ] Real Supabase auth + session middleware
+- [ ] CSV upload + TPN matching + deposit engine + NACHA export
+- [ ] Replace dummy-data imports with live queries
