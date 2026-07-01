@@ -1,4 +1,5 @@
 // PURPOSE: App-wide constants shared across the portal.
+// brightway portal — configuration constants
 
 /** Display name of the application. */
 export const APP_NAME = "Brightway Portal";
